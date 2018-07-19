@@ -1,0 +1,76 @@
+# serverless.yml
+
+service: save-geojson-application
+
+plugins:
+  - serverless-dynamodb-local
+  - serverless-offline #serverless-offline needs to be last in the list
+
+custom:
+  tableName: 'geojson-table-${self:provider.stage}'
+  dynamodb:
+    start:
+      migrate: true
+
+provider:
+  name: aws
+  runtime: nodejs6.10
+  stage: dev
+  region: us-east-1
+  iamRoleStatements:
+    - Effect: Allow
+      Action:
+        - dynamodb:Query
+        - dynamodb:Scan
+        - dynamodb:GetItem
+        - dynamodb:PutItem
+        - dynamodb:UpdateItem
+        - dynamodb:DeleteItem
+      Resource:
+        - { "Fn::GetAtt": ["UsersDynamoDBTable", "Arn" ] }
+  environment:
+    GEOJSON_TABLE: ${self:custom.tableName}
+
+functions:
+  app:
+    handler: index.handler
+    events:
+      - http: 
+            path: /
+            method: any
+      - http: 
+            path: '{proxy+}'
+            method: any
+  getUser:
+    handler: index.handler
+    events:
+      - http: 
+            path: '/users/{proxy+}'
+            method: get
+  createUser:
+    handler: index.handler
+    events:
+      - http: 
+            path: /users
+            method: post
+            cors: true
+
+resources:
+  Resources:
+    UsersDynamoDBTable:
+      Type: 'AWS::DynamoDB::Table'
+      Properties:
+        AttributeDefinitions:
+          -
+            AttributeName: Id
+            AttributeType: S
+        KeySchema:
+          -
+            AttributeName: Id
+            KeyType: HASH
+        ProvisionedThroughput:
+          ReadCapacityUnits: 1
+          WriteCapacityUnits: 1
+        TableName: ${self:custom.tableName}
+
+
