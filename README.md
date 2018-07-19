@@ -32,3 +32,6 @@ $ aws dynamodb list-tables --endpoint-url http://localhost:8000
 
 $ aws dynamodb scan --table-name "geojson-table-dev" --endpoint-url http://localhost:8000
 ```
+
+### useful tutorials
+https://serverless.com/blog/serverless-express-rest-api/
