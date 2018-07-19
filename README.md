@@ -35,3 +35,4 @@ $ aws dynamodb scan --table-name "geojson-table-dev" --endpoint-url http://local
 
 ### useful tutorials
 https://serverless.com/blog/serverless-express-rest-api/
+https://github.com/serverless/examples/tree/master/aws-node-rest-api-with-dynamodb-and-offline
