@@ -5,7 +5,14 @@ This is a serverless application that will recieve a post request and save a geo
 ## extra tips
 
 ### dependancies
-Do an 'npm install'. Also make sure if you are running locally that you have Java installed (DynamoDB dependency).
+Do an 'npm install'. 
+
+Install DynamoDB locally:
+```
+sls dynamodb install
+```
+
+Also make sure if you are running locally that you have Java installed (DynamoDB dependency).
 
 ### how to run locally
 ```
@@ -32,3 +39,8 @@ $ aws dynamodb list-tables --endpoint-url http://localhost:8000
 
 $ aws dynamodb scan --table-name "geojson-table-dev" --endpoint-url http://localhost:8000
 ```
+
+### useful tutorials
+https://serverless.com/blog/serverless-express-rest-api/
+
+https://github.com/serverless/examples/tree/master/aws-node-rest-api-with-dynamodb-and-offline
