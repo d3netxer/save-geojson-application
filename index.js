@@ -14,9 +14,8 @@ const GEOJSON_TABLE = process.env.GEOJSON_TABLE;
 
 const IS_OFFLINE = process.env.IS_OFFLINE;
 
-
-
 let dynamoDb;
+
 if (IS_OFFLINE === 'true') {
   dynamoDb = new AWS.DynamoDB.DocumentClient({
     region: 'localhost',
@@ -28,7 +27,6 @@ if (IS_OFFLINE === 'true') {
 };
 
 app.use(cors())
-
 app.use(bodyParser.json({ strict: false }));
 app.use(bodyParser.urlencoded({extended : false}));
 
@@ -37,93 +35,153 @@ app.get('/', function (req, res) {
 })
 
 // Get User endpoint
-app.get('/users/:Id', function (req, res) {
-
+app.get('/form/:Id', function (req, res) {
+  //console.log('print req');
+  //console.log(req);
   const params = {
     TableName: GEOJSON_TABLE,
     Key: {
       Id: req.params.Id,
     },
   }
-
   dynamoDb.get(params, (error, result) => {
     if (error) {
       console.log(error);
-      res.status(400).json({ error: 'Could not get user' });
+      res.status(400).json({ error: 'Could not get form' });
     }
     if (result.Item) {
-      const {Id, geojson} = result.Item;
-      res.json({ Id, geojson });
+      const {Id, data} = result.Item;
+      res.json({ Id, data });
     } else {
-      res.status(404).json({ error: "User not found" });
+      res.status(404).json({ error: "form not found" });
     }
   });
 })
 
-// Create User endpoint
-app.post('/users', function (req, res) {
-
-  console.log('does console log work?');
-  //res.send('recieved a post3');
-  console.log('yes console log work must work');
-
-  console.log('req body');
-  console.log(req.body);
-
-  // g-recaptcha-response is the key that browser will generate upon form submit.
-  // if its blank or null means user has not selected the captcha, so return the error.
-  if(req.body['g-recaptcha-response'] === undefined || req.body['g-recaptcha-response'] === '' || req.body['g-recaptcha-response'] === null) {
-    return res.json({"responseCode" : 1,"responseDesc" : "Please select captcha"});
-  }
-  // Put your secret key here.
-  var secretKey = "6LdUIGUUAAAAABKqnfjw0z2YgU3TK5CJbJzmbXQn";
-  // req.connection.remoteAddress will provide IP address of connected user.
-  var verificationUrl = "https://www.google.com/recaptcha/api/siteverify?secret=" + secretKey + "&response=" + req.body['g-recaptcha-response'] + "&remoteip=" + req.connection.remoteAddress;
-  // Hitting GET request to the URL, Google will respond with success or error scenario.
-
-  console.log('print verificationUrl');
-  console.log(verificationUrl);
-
-  request(verificationUrl,function(error,response,body) {
-    body = JSON.parse(body);
-    // Success will be true or false depending upon captcha validation.
-    if(body.success !== undefined && !body.success) {
-      return res.json({"responseCode" : 1,"responseDesc" : "Failed captcha verification"});
+function replaceJSONEmptyStrings (json) {
+    for(var key in json) {
+       //console.log('print json[key]');
+       //console.log(json[key]);
+       if (json[key] == '') {
+          //console.log('value is empty');
+          json[key] = 'no_data';
+       }
     }
-    //so then it was a success
-    //res.json({"responseCode" : 0,"responseDesc" : "Sucess"});
+    return json;
+}
+
+function postGeoJSON(req,res) {
+
       console.log('generate a UUID timestamp');
       console.log(uuidV1());
 
       console.log('req body');
       console.log(req.body);
-      console.log('this is the aoi content');
-      console.log(req.body.files.aoi.content);
 
+      console.log('starting replaceJSONEmptyStrings function');
+      var emptyJSON = replaceJSONEmptyStrings(req.body);
 
-      //const description = req.body.description;
+      //console.log('print emptyJSON');
+      //console.log(emptyJSON);
+
       const Id = uuidV1();
-      //const type = req.body.public;
-      const geojson = req.body.files.aoi.content;
+
+      //const geojson = req.body.files.aoi.content;
 
       const params = {
         TableName: GEOJSON_TABLE,
         Item: {
           Id: Id,
-          geojson: geojson,
+          data: emptyJSON,
         },
       };
+
+      //const params = req.body
 
       dynamoDb.put(params, (error) => {
         if (error) {
           console.log(error);
-          res.status(400).json({ error: 'Could not create geojson post' });
+          res.status(400).json({ error: 'Could not create dynamoDB post' });
         }
-        res.json({ Id, geojson });
+        res.json({ Id });
       });
+
+}
+
+function verifyreCaptcha(req, callback) {
+
+  console.log('starting verifyCaptcha function');
+
+  //https://codeforgeek.com/2016/03/google-recaptcha-node-js-tutorial/
+  // g-recaptcha-response is the key that browser will generate upon form submit.
+  // if its blank or null means user has not selected the captcha, so return the error.
+
+  if(req.body['g-recaptcha-response'] === undefined || req.body['g-recaptcha-response'] === '' || req.body['g-recaptcha-response'] === null) {
+    //return res.json({"responseCode" : 1,"responseDesc" : "Please select captcha"});
+    callback(false);
+  }
+
+  // Put your secret key here.
+  var secretKey = "6LdUIGUUAAAAABKqnfjw0z2YgU3TK5CJbJzmbXQn";
+
+  // req.connection.remoteAddress will provide IP address of connected user.
+  var verificationUrl = "https://www.google.com/recaptcha/api/siteverify?secret=" + secretKey + "&response=" + req.body['g-recaptcha-response'] + "&remoteip=" + req.connection.remoteAddress;
+
+  // Hitting GET request to the URL, Google will respond with success or error scenario.
+  console.log('print verificationUrl');
+  console.log(verificationUrl);
+
+  request(verificationUrl,function(error,response,body) {
+      body = JSON.parse(body);
+      console.log("print body1");
+      console.log(body);
+      //return body;
+      callback(body);
   });
 
+}
 
-})
+
+// Create form endpoint
+app.post('/forms', function (req, res) {
+
+  console.log('print req body');
+  console.log(req.body);
+
+  verifyreCaptcha(req, function(success) {
+
+        if (success) {
+            console.log("Success!");
+            console.log("print body");
+            console.log(success);
+
+            if (success.success !== undefined && !success.success) {
+              return res.json({"responseCode" : 1,"responseDesc" : "Failed captcha verification"});
+            } else {
+              console.log('captcha was a success');
+              console.log('print req.body');
+              console.log(req.body);
+              //if description is only_verify_captcha then do nothing
+              if (req.body.description == 'only_verify_captcha') {
+                  //post fields to DynamoDB
+                  console.log('going to post data to DynamoDB');
+                  postGeoJSON(req,res);
+              } else {
+                  //or else post geojson
+                  console.log('going to post geoJSON');
+                  postGeoJSON(req,res);
+              }
+            }
+                // TODO: do registration using params in req.body
+        } else {
+            return res.json({"responseCode" : 1,"responseDesc" : "Please select captcha"});
+            // TODO: take them back to the previous page
+            // and for the love of everyone, restore their inputs
+        }
+  });
+
+  //console.log('verifyCaptcha function done');
+
+});
 
 module.exports.handler = serverless(app);
