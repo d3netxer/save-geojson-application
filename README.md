@@ -1,6 +1,6 @@
 # save-geojson-application
 
-This is a serverless application that will recieve a post request and save a geojson into a DynamoDB table on AWS.
+This is a serverless node.js application that will receive a post request and save a geojson into a DynamoDB table on AWS.
 
 ## extra tips
 
